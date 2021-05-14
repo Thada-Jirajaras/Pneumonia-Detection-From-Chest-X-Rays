@@ -1,16 +1,18 @@
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau
-from keras.layers import GlobalAveragePooling2D, Dense, Dropout, Flatten, Conv2D, MaxPooling2D
+from keras.callbacks import Callback, ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau
 from keras.preprocessing.image import ImageDataGenerator
-from keras.applications.resnet import ResNet50 
-from keras.applications.vgg16 import VGG16
-from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from keras.utils import Sequence
+from .lr_finder import LRFinder 
+import keras.backend as K
 import sklearn.model_selection as skl
 from glob import glob
 import pandas as pd
+import numpy as np
 import argparse
 import os
+
+
+
 
 
 def _create_dataset(input_file, output_trainfile, output_valfile):
@@ -76,6 +78,8 @@ def make_val_gen(val_df, imgpath_col, class_col,
                                             directory=None, 
                                              x_col = imgpath_col,
                                              y_col = class_col,
+                                             classes =  ['Non-Pneumonia', 'Pneumonia'],
+                                             shuffle = False,
                                              class_mode = 'binary',
                                              target_size = IMG_SIZE, 
                                              batch_size = batch_size)  
@@ -122,6 +126,7 @@ class TrainGen(Sequence):
                                 directory=None, 
                                  x_col = self.imgpath_col,
                                  y_col = self.class_col,
+                                 classes = ['Non-Pneumonia', 'Pneumonia'],                        
                                  shuffle=True,    
                                  class_mode = 'binary',
                                  target_size = self.IMG_SIZE, 
@@ -135,59 +140,44 @@ class TrainGen(Sequence):
         return self.n // self.batch_size
 
 
-
-
-
-def load_pretrained_model(lay_of_interest = 'block5_pool'):
-    
-    # model = VGG16(include_top=True, weights='imagenet')
-    # transfer_layer = model.get_layer(lay_of_interest)
-    # vgg_model = Model(inputs = model.input, outputs = transfer_layer.output)
-    
-    # Todo
-    model = VGG16(include_top=True, weights='imagenet')
-    transfer_layer = model.get_layer(lay_of_interest)
-    vgg_model = Model(inputs = model.input, outputs = transfer_layer.output)
-    return vgg_model
-
-def build_my_model(vgg_model):
-    
-    # my_model = Sequential()
-    # ....add your pre-trained model, and then whatever additional layers you think you might
-    # want for fine-tuning (Flatteen, Dense, Dropout, etc.)
-    
-    # if you want to compile your model within this function, consider which layers of your pre-trained model, 
-    # you want to freeze before you compile 
-    
-    # also make sure you set your optimizer, loss function, and metrics to monitor
-    
-    # Todo
-    for layer in vgg_model.layers[0:17]:
-        layer.trainable = False
+class CyclicalLearningRate(Callback):
+    def __init__(self, initial_learning_rate = 0.0001, 
+                 maximal_learning_rate = 0.1):
+        self.initial_learning_rate = initial_learning_rate
+        self.maximal_learning_rate = maximal_learning_rate
         
-    my_model = Sequential()
-
-    # Add the convolutional part of the VGG16 model from above.
-    my_model.add(vgg_model)
-
-    # Flatten the output of the VGG16 model because it is from a
-    # convolutional layer.
-    my_model.add(Flatten())
-
-    # Add a dense (aka. fully-connected) layer.
-    # This is for combining features that the VGG16 model has
-    # recognized in the image.
-    my_model.add(Dense(1, activation='sigmoid'))    
-     
+    def on_batch_end(self, batch, logs = None):
+        step = batch
+        scale_fn = lambda x: 1.
+        initial_learning_rate = self.initial_learning_rate
+        maximal_learning_rate = self.maximal_learning_rate
+        step_size = 10
+        cycle = np.floor(1 + step  / (2.0 * step_size))
+        x = np.abs(step  / step_size - 2.0 * cycle + 1)
+        mode_step = cycle
+        lr =  initial_learning_rate + (
+                maximal_learning_rate - initial_learning_rate
+                ) * max( 0, (1 - x)) * scale_fn(mode_step)
+        K.set_value(self.model.optimizer.lr, lr)
         
-    ## STAND-OUT Suggestion: choose another output layer besides just the last classification layer of your modele
-    ## to output class activation maps to aid in clinical interpretation of your model's results    
+def find_optimal_lr(model, train_gen, epochs):
     
-    return my_model
+    print("Use lr_finder from https://github.com/surmenok/keras_lr_finder/blob/master/keras_lr_finder/lr_finder.py")
+    optimizer = Adam()
+    loss = 'binary_crossentropy'
+    model.compile(optimizer=optimizer, loss=loss)
+    lr_finder = LRFinder(model)
+    lr_finder.find_generator(train_gen, start_lr=0.0001, end_lr=1, epochs=epochs)
+    return(lr_finder)
 
+        
+        
 def build_callbacks_list(weight_path,
                          metric = 'val_loss',
-                         mode = 'min'):
+                         mode = 'min',
+                        initial_learning_rate = 0.0001,
+                        maximal_learning_rate = 0.1):
+    
     checkpoint = ModelCheckpoint(weight_path, 
                                   monitor = metric, 
                                   verbose= 1 , 
@@ -198,13 +188,22 @@ def build_callbacks_list(weight_path,
     early = EarlyStopping(monitor= metric, 
                            mode = mode, 
                            patience = 10)
+    
+    cyclical_lr = CyclicalLearningRate(initial_learning_rate, 
+                                       maximal_learning_rate)
 
-    return([checkpoint, early])
+    return([checkpoint, early, cyclical_lr])
+
+def get_lr_metric(optimizer):
+    def lr(y_true, y_pred):
+        return optimizer.lr
+    return lr
 
 def train(model, callbacks_list, train_gen, validation_data, epochs):
-    optimizer = Adam(lr=1e-4)
+    optimizer = Adam()
     loss = 'binary_crossentropy'
-    metrics = ['binary_accuracy']
+    lr_metric = get_lr_metric(optimizer)
+    metrics = ['binary_accuracy', lr_metric]
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     # Todo
