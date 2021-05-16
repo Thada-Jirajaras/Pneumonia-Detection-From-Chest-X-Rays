@@ -4,45 +4,36 @@ from keras.applications.vgg16 import VGG16
 from keras.models import Sequential, Model
 
 
-def load_pretrained_model(lay_of_interest = 'block5_pool'):
-    
-    # model = VGG16(include_top=True, weights='imagenet')
-    # transfer_layer = model.get_layer(lay_of_interest)
-    # vgg_model = Model(inputs = model.input, outputs = transfer_layer.output)
+def load_pretrained_VGG16(lay_of_interest = 'block5_pool', 
+                          trainable_after_layer = 17):
     
     # Todo
     model = VGG16(include_top=True, weights='imagenet')
     transfer_layer = model.get_layer(lay_of_interest)
     vgg_model = Model(inputs = model.input, outputs = transfer_layer.output)
-    return vgg_model
-
-def build_my_model(vgg_model):
-    
-    # my_model = Sequential()
-    # ....add your pre-trained model, and then whatever additional layers you think you might
-    # want for fine-tuning (Flatteen, Dense, Dropout, etc.)
-    
-    # if you want to compile your model within this function, consider which layers of your pre-trained model, 
-    # you want to freeze before you compile 
-    
-    # also make sure you set your optimizer, loss function, and metrics to monitor
-    
-    # Todo
-    for layer in vgg_model.layers[0:17]:
+    for layer in vgg_model.layers[0:trainable_after_layer]:
         layer.trainable = False
         
+    return vgg_model
+
+
+def load_pretrained_ResNet50(lay_of_interest = 'avg_pool', 
+                          trainable_after_layer = 17):
+    
+    # Todo
+    model = ResNet50(include_top = True, weights='imagenet')     
+    transfer_layer = model.get_layer(lay_of_interest)
+    resnet50_model = Model(inputs = model.input, outputs = transfer_layer.output)
+    for layer in resnet50_model.layers[0:trainable_after_layer]:
+        layer.trainable = False
+                  
+    return resnet50_model
+
+def build_my_model(model, flatten_transfer_layer = True):
     my_model = Sequential()
-
-    # Add the convolutional part of the VGG16 model from above.
-    my_model.add(vgg_model)
-
-    # Flatten the output of the VGG16 model because it is from a
-    # convolutional layer.
-    my_model.add(Flatten())
-
-    # Add a dense (aka. fully-connected) layer.
-    # This is for combining features that the VGG16 model has
-    # recognized in the image.
+    my_model.add(model)
+    if flatten_transfer_layer:
+        my_model.add(Flatten())
     my_model.add(Dense(1, activation='sigmoid'))    
      
         

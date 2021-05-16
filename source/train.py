@@ -1,3 +1,4 @@
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score, plot_precision_recall_curve, f1_score, confusion_matrix
 from keras.callbacks import Callback, ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import Adam
@@ -5,8 +6,11 @@ from keras.utils import Sequence
 from .lr_finder import LRFinder 
 import keras.backend as K
 import sklearn.model_selection as skl
+from matplotlib import pyplot as plt
+from random import sample
 from glob import glob
 import pandas as pd
+import seaborn as sns
 import numpy as np
 import argparse
 import os
@@ -41,8 +45,15 @@ def _create_dataset(input_file, output_trainfile, output_valfile):
     ## split your original dataframe into two sets 
     ## that can be used for training and testing your model
     train_data, val_data = create_splits(all_xray_df,  stratify_on = 'pneumonia_class')
-    train_data[['path', 'Pneumonia', 'pneumonia_class']].to_csv(output_trainfile, index = False)
-    val_data[['path', 'Pneumonia', 'pneumonia_class']].to_csv(output_valfile, index = False)
+    train_data[['path', 'Pneumonia', 'pneumonia_class']].sample(frac = 1).to_csv(output_trainfile, index = False)
+    
+    
+    ## Balance validation set (In the clinical setting where this algorithm will be deployed, The prevalence of Pneumonia is about 20% of those who are x-rayed.)
+    vp_ind = val_data[val_data.Pneumonia==1].index.tolist()
+    vn_ind = val_data[val_data.Pneumonia==0].index.tolist()
+    vn_sample = sample(vn_ind, 4*len(vp_ind))
+    val_data = val_data.loc[vp_ind+vn_sample]
+    val_data[['path', 'Pneumonia', 'pneumonia_class']].sample(frac = 1).to_csv(output_valfile, index = False)
     
 
 
@@ -71,14 +82,14 @@ def my_image_augmentation(horizontal_flip = True,
 
 
 def make_val_gen(val_df, imgpath_col, class_col, 
-                 IMG_SIZE = (224, 224), batch_size = 32):
+                 IMG_SIZE = (224, 224), batch_size = 128*2):
     
     my_val_idg = ImageDataGenerator(rescale = 1. / 255.0)    
     val_gen = my_val_idg.flow_from_dataframe(dataframe = val_df, 
                                             directory=None, 
                                              x_col = imgpath_col,
                                              y_col = class_col,
-                                             classes =  ['Non-Pneumonia', 'Pneumonia'],
+                                             classes =  ['Non-pneumonia', 'Pneumonia'],
                                              shuffle = False,
                                              class_mode = 'binary',
                                              target_size = IMG_SIZE, 
@@ -87,11 +98,11 @@ def make_val_gen(val_df, imgpath_col, class_col,
 
 class TrainGen(Sequence):
     
-    def __init__(self, train_data):
+    def __init__(self, train_data):   
         
         # prepare image generator
         self.train_data = train_data.copy()
-        self.batch_size = 32
+        self.batch_size = 128*2
         self.IMG_SIZE = (224, 224)
         self.imgpath_col = 'path'
         self.class_col = 'pneumonia_class'
@@ -126,7 +137,7 @@ class TrainGen(Sequence):
                                 directory=None, 
                                  x_col = self.imgpath_col,
                                  y_col = self.class_col,
-                                 classes = ['Non-Pneumonia', 'Pneumonia'],                        
+                                 classes = ['Non-pneumonia', 'Pneumonia'],                         
                                  shuffle=True,    
                                  class_mode = 'binary',
                                  target_size = self.IMG_SIZE, 
@@ -141,17 +152,21 @@ class TrainGen(Sequence):
 
 
 class CyclicalLearningRate(Callback):
-    def __init__(self, initial_learning_rate = 0.0001, 
-                 maximal_learning_rate = 0.1):
+    def __init__(self, 
+                 initial_learning_rate = 0.0001, 
+                 maximal_learning_rate = 0.1,
+                 step_size = 10):
+        super(Callback, self).__init__()
         self.initial_learning_rate = initial_learning_rate
         self.maximal_learning_rate = maximal_learning_rate
+        self.step_size = step_size
         
-    def on_batch_end(self, batch, logs = None):
+    def on_train_batch_end(self, batch, logs = None):
         step = batch
         scale_fn = lambda x: 1.
         initial_learning_rate = self.initial_learning_rate
         maximal_learning_rate = self.maximal_learning_rate
-        step_size = 10
+        step_size = self.step_size
         cycle = np.floor(1 + step  / (2.0 * step_size))
         x = np.abs(step  / step_size - 2.0 * cycle + 1)
         mode_step = cycle
@@ -160,58 +175,130 @@ class CyclicalLearningRate(Callback):
                 ) * max( 0, (1 - x)) * scale_fn(mode_step)
         K.set_value(self.model.optimizer.lr, lr)
         
-def find_optimal_lr(model, train_gen, epochs):
+def find_optimal_lr(model, train_gen, epochs, save_path):
     
     print("Use lr_finder from https://github.com/surmenok/keras_lr_finder/blob/master/keras_lr_finder/lr_finder.py")
     optimizer = Adam()
     loss = 'binary_crossentropy'
     model.compile(optimizer=optimizer, loss=loss)
     lr_finder = LRFinder(model)
-    lr_finder.find_generator(train_gen, start_lr=0.0001, end_lr=1, epochs=epochs)
-    return(lr_finder)
+    lr_finder.find_generator(train_gen, start_lr=10**(-8), end_lr= 1, epochs=epochs)
+    result = pd.DataFrame({'lrs': lr_finder.lrs, 'losses': lr_finder.losses}) 
+    result.to_csv(save_path, index = False)
+    K.clear_session()
+   
 
+def plot_lr_loss(optimallr_path, n_skip_beginning=10, 
+                 n_skip_end=5, x_scale='log', figure_title = '',
+                outlier_cut = 1000000,
+                plot_ylim = 5):
+    """
+    Plots the loss.
+    Parameters:
+        n_skip_beginning - number of batches to skip on the left.
+        n_skip_end - number of batches to skip on the right.
+    """
+    
+    
+    data = pd.read_csv(optimallr_path)
+    data = data[data.losses < outlier_cut]
+    lrs, losses = data.lrs.tolist(), data.losses.tolist()   
+    plt.figure(figsize = (15, 6))
+    plt.ylabel("loss")
+    plt.xlabel("learning rate (log scale)")
+    plt.title(figure_title)
+    #sns.regplot(x="lrs", y="losses", data=data, lowess = True)
+    plt.ylim(plot_ylim)
+    plt.plot(lrs[n_skip_beginning:-n_skip_end], losses[n_skip_beginning:-n_skip_end])
+    plt.xscale(x_scale)
+    plt.show()
+
+    
+
+  
+  
+
+
+class PrecisionAtRecall(Callback):
+    def __init__(self, recall, val_gen):
+        super(Callback, self).__init__()
+        self.recall = recall
+        self.val_gen = val_gen
+     
         
+    def on_epoch_end(self, epoch, logs = {}):
+        y_pred = self.model.predict(self.val_gen).flatten()
+        y_true = self.val_gen.labels
+        precision, recall, thresholds = precision_recall_curve(y_true, y_pred)
+        try:
+            result = max(precision[recall >= self.recall]) 
+        except:
+            result = 0
+        logs['PrecisionAtRecall80'] = result
+     
+            
         
 def build_callbacks_list(weight_path,
-                         metric = 'val_loss',
-                         mode = 'min',
+                         validation_data,
+                         patience = 10,
                         initial_learning_rate = 0.0001,
-                        maximal_learning_rate = 0.1):
-    
+                        maximal_learning_rate = 0.1,
+                        cyclical_lrstepsize = 10):
+    ## Below is some helper code that will allow you to add checkpoints to your model,
+    ## This will save the 'best' version of your model by comparing it to previous epochs of training
+
+    ## Note that you need to choose which metric to monitor for your model's 'best' performance if using this code. 
+    ## The 'patience' parameter is set to 10, meaning that your model will train for ten epochs without seeing
+    ## improvement before quitting
+
+    # Todo
+    mode = 'max'
     checkpoint = ModelCheckpoint(weight_path, 
-                                  monitor = metric, 
+                                  monitor = 'PrecisionAtRecall80', 
                                   verbose= 1 , 
                                   save_best_only = True, 
                                   mode = mode, 
                                   save_weights_only = True)
 
-    early = EarlyStopping(monitor= metric, 
+    early = EarlyStopping(monitor= 'PrecisionAtRecall80', 
                            mode = mode, 
-                           patience = 10)
+                           patience = patience)
     
     cyclical_lr = CyclicalLearningRate(initial_learning_rate, 
-                                       maximal_learning_rate)
+                                       maximal_learning_rate,
+                                      step_size = cyclical_lrstepsize)
 
-    return([checkpoint, early, cyclical_lr])
+    return([PrecisionAtRecall(recall=0.8, val_gen = validation_data), checkpoint, early, cyclical_lr])
 
 def get_lr_metric(optimizer):
     def lr(y_true, y_pred):
         return optimizer.lr
     return lr
 
-def train(model, callbacks_list, train_gen, validation_data, epochs):
+def train(model, callbacks_list, train_gen, epochs, 
+          save_architecture_to = "my_model.json",
+         save_history_to =  "history.npy"):
     optimizer = Adam()
     loss = 'binary_crossentropy'
     lr_metric = get_lr_metric(optimizer)
-    metrics = ['binary_accuracy', lr_metric]
+    metrics = []
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     # Todo
     history = model.fit_generator(generator = train_gen, 
-                               validation_data = validation_data,
+                               #validation_data = validation_data,
                                epochs = epochs, 
                                callbacks = callbacks_list)
-    return(history)
+    # save model architecture
+    model_json = model.to_json()
+    with open(save_architecture_to, "w") as json_file:
+        json_file.write(model_json)
+        
+    # save history
+    np.save(save_history_to, history.history)    
+    K.clear_session()
+
+
 
 
 if __name__ == "__main__":
