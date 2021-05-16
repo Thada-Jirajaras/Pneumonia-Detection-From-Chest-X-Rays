@@ -36,12 +36,27 @@ def plot_auc(c_ax, t_y, p_y):
 ## what other performance statistics do you want to include here besides AUC?     
 
 # function to plot the precision_recall_curve. You can utilizat precision_recall_curve imported above
-def plot_precision_recall_curve(c_ax, t_y, p_y):
+def plot_precision_recall_f1_curve(c_axs, t_y, p_y):
+    
+    # precision recall curve
     precision, recall, thresholds = precision_recall_curve(t_y, p_y)
-    c_ax.plot(recall, precision, label = '%s (AP Score:%0.2f)'  % ('Pneumonia', average_precision_score(t_y,p_y)))
-    c_ax.legend()
-    c_ax.set_xlabel('Recall')
-    c_ax.set_ylabel('Precision')
+    c_axs[0].plot(recall, precision, label = '%s (AP Score:%0.2f)'  % ('Pneumonia', average_precision_score(t_y,p_y)))
+    c_axs[0].legend()
+    c_axs[0].set_xlabel('Recall')
+    c_axs[0].set_ylabel('Precision')
+    
+    # precision, recall, F1, thresholds
+    precision = np.asarray(precision[:-1])
+    recall = np.asarray(recall[:-1])
+    f1 = calc_f1(precision, recall)
+    maxf1index = np.nanargmax(f1)
+    c_axs[1].plot(thresholds, precision, label = 'precision')
+    c_axs[1].plot(thresholds, recall, label = 'recall')
+    c_axs[1].plot(thresholds, f1, label = 'F1-score')
+    c_axs[1].legend()
+    c_axs[1].set_title(f'With max F1-score={f1[maxf1index]:.3}, threshold={thresholds[maxf1index]:.3}\nRecall={recall[maxf1index]:.3}, Precision = {precision[maxf1index]:.2}')
+    c_axs[1].set_xlabel('Threshold')
+    c_axs[1].set_ylabel('Score')
 
 
 
@@ -56,7 +71,9 @@ def plot_history(c_axs, history):
         c_axs[i].set_xlabel("Epoch #")
         c_axs[i].set_ylabel("Loss/Accuracy")
         c_axs[i].legend(loc="lower left")
-    
+
+
+
 def plot_performance(prediction_path, groundtruth_path, history_path, title = ''):
     # Get prediction
     probability = np.load(prediction_path)
@@ -64,15 +81,20 @@ def plot_performance(prediction_path, groundtruth_path, history_path, title = ''
     history = np.load(history_path,allow_pickle='TRUE').item()
     
     # plot results 
-    
-    fig, axs = plt.subplots(1, 2 + len(history), figsize = (15, 6))
+    number_of_axs = 3 + len(history)
+    colnum = 3
+    rownum = (number_of_axs - 1)//colnum + 1 
+    fig, axs = plt.subplots(rownum, colnum, figsize = (15, rownum*6))
+    axs = axs.flatten()
+    for ax in axs[number_of_axs:]:
+        ax.remove()
     plot_auc(axs[0], ground_truth, probability)
-    plot_precision_recall_curve(axs[1], ground_truth, probability)
-    plot_history(axs[2:], history) 
+    plot_precision_recall_f1_curve(axs[1:3], ground_truth, probability)
+    plot_history(axs[3:], history) 
     fig.suptitle(title)
     plt.show()
     
         
 # function to calculate the F1 score
 def  calc_f1(prec,recall):
-    return 2*(prec*recall)/(prec+recall)        
+    return 2.0*(prec*recall)/(prec+recall)        
