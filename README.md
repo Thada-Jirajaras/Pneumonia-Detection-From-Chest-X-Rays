@@ -134,7 +134,7 @@ The architecture of Pre-existing architecture is VGG16
   * flatten_1 (Flatten) 
   * dense_1 (Dense)  
 
-![performance_visualization](D:\udacity_git_project\Pneumonia-Detection-From-Chest-X-Rays\image\performance_visualization.png)
+![performance_visualization](image/performance_visualization.png)
 
 Note that PrecisionAtRecall80 means max precision when recall >= 0.8.
 
