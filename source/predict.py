@@ -30,6 +30,7 @@ def plot_auc(c_ax, t_y, p_y):
     fpr, tpr, thresholds = roc_curve(t_y, p_y)
     c_ax.plot(fpr, tpr, label = '%s (AUC:%0.2f)'  % ('Pneumonia', auc(fpr, tpr)))
     c_ax.legend()
+    c_ax.set_title('AUC curve on Validation Set')
     c_ax.set_xlabel('False Positive Rate')
     c_ax.set_ylabel('True Positive Rate')
     
@@ -42,6 +43,7 @@ def plot_precision_recall_f1_curve(c_axs, t_y, p_y):
     precision, recall, thresholds = precision_recall_curve(t_y, p_y)
     c_axs[0].plot(recall, precision, label = '%s (AP Score:%0.2f)'  % ('Pneumonia', average_precision_score(t_y,p_y)))
     c_axs[0].legend()
+    c_axs[0].set_title('Precision-Recall Curve on Validation Set')
     c_axs[0].set_xlabel('Recall')
     c_axs[0].set_ylabel('Precision')
     
@@ -54,7 +56,7 @@ def plot_precision_recall_f1_curve(c_axs, t_y, p_y):
     c_axs[1].plot(thresholds, recall, label = 'recall')
     c_axs[1].plot(thresholds, f1, label = 'F1-score')
     c_axs[1].legend()
-    c_axs[1].set_title(f'With max F1-score={f1[maxf1index]:.3}, threshold={thresholds[maxf1index]:.3}\nRecall={recall[maxf1index]:.3}, Precision = {precision[maxf1index]:.2}')
+    c_axs[1].set_title(f'With max F1-score={f1[maxf1index]:.3}, threshold={thresholds[maxf1index]:.3}\nRecall={recall[maxf1index]:.3}, Precision = {precision[maxf1index]:.2}\non Validation Set')
     c_axs[1].set_xlabel('Threshold')
     c_axs[1].set_ylabel('Score')
 
@@ -67,7 +69,11 @@ def plot_history(c_axs, history):
     N = len(history["loss"])
     for i, key in enumerate(history.keys()):
         c_axs[i].plot(np.arange(0, N), history[key], label=key)
-        c_axs[i].set_title(f"Training {key} on Dataset")
+        if key == "loss":
+            mode = "Training"
+        else:
+            mode = 'Validation'
+        c_axs[i].set_title(f"{mode} {key} on Dataset")
         c_axs[i].set_xlabel("Epoch #")
         c_axs[i].set_ylabel("Loss/Accuracy")
         c_axs[i].legend(loc="lower left")
@@ -84,7 +90,7 @@ def plot_performance(prediction_path, groundtruth_path, history_path, title = ''
     number_of_axs = 3 + len(history)
     colnum = 3
     rownum = (number_of_axs - 1)//colnum + 1 
-    fig, axs = plt.subplots(rownum, colnum, figsize = (15, rownum*6))
+    fig, axs = plt.subplots(rownum, colnum, figsize = (15, rownum*5))
     axs = axs.flatten()
     for ax in axs[number_of_axs:]:
         ax.remove()
