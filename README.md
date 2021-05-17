@@ -12,7 +12,7 @@
 
 **Indications for Use:** It is indicated for use in patients (male and female) within the age bracket 1-95 years with chest x-rays taken in the AP and PA view positions on a ER setting
 
-**Device Limitations:** The presence of Emphysema or Nodule may reduce the model performance of the algorithm in precision or recall of predicting the presence of pneumonia in a chest x-ray. Conversely, the presence of Edema, Infiltration, or Consolidation in the image may lead to improved performance of the algorithm in precision or recall of predicting the presence of pneumonia from a chest x-ray.
+**Device Limitations:** It is alright to have high False Positive (FP) or False discovery rate for screening but False Negative (FN) or False Negative Rate (FNR) needs to be low. The reason is because for screening, FP cases can be read again by the radiologist but FP maybe ignored or have very low priority to read. The presence of Atelectasis or Nodule may reduce the model performance of the algorithm in FNR of predicting the presence of pneumonia in a chest x-ray. 
 
 **Clinical Impact of Performance:** This algorithm's performance shows that it will be useful for screening chest x-rays for pneumonia and may also be used for workflow prioritization.
 
@@ -111,7 +111,6 @@ The architecture of Pre-existing architecture is VGG16
 ### 3. Algorithm Training
 
 **Parameters:**
-
 * Types of augmentation used during training
   * Horizontal_flip
   * Height_shift_range = 0.1
@@ -148,13 +147,13 @@ Selected threshold = 0.43900916 with
 
 3. F1-score = 0.42
 
-The criteria to choose the threshold is to find the threshold that maximizes precision when recall >= 0.8
+The criteria to choose the threshold is to find the threshold that maximizes precision at recall >= 0.8
 
 ![performance_visualization](image/performance_visualization.png)
 
 ### 4. Databases
 
-**Description of Dataset:** 
+**Description of the Original Dataset:** 
 
 The dataset contains 112,120 chest X-ray images (Image Index) with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients (Patient ID).
 
@@ -168,9 +167,11 @@ The distribution of top 30 diseases that are comorbid with pneumonia
 
 ![comorbid](image/comorbid.png)
 
+
+
 **Description of Training Dataset:** 
 
-The training dataset is an imbalanced dataset containing 1,145 pneumonia cases and a total of 89,696 images sampled from 112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients.
+The training dataset is an imbalanced dataset containing 1,145 pneumonia cases and a total of 89,696 images sampled from the Original Dataset (112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients).
 
 However, the training dataset for each training epoch contains only 2,304  images and is almost balanced for Pneumonia and Non-Pneumonia labels by the sampling technique as follows.
 
@@ -183,7 +184,7 @@ The reason to use 2,304 number is that it can be divided by the batch size 256 t
 
 **Description of Validation Dataset:** 
 
-The validation dataset is an imbalanced dataset containing 20% pneumonia cases and a total of 1430 images sampled from 112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients.
+The validation dataset is an imbalanced dataset containing 20% pneumonia cases and a total of 1430 images sampled from the Original Dataset (112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients).
 
 ![validation_dataset](image/validation_dataset.png)
 
@@ -196,13 +197,20 @@ This NIH Chest X-ray Dataset is comprised of 112,120 X-ray images with disease l
 
 **Patient Population Description for FDA Validation Dataset:**
 
-The FDA validation dataset was acquired from six patients, all men with ages 58, 71 and each of the remaining four being 81 years old.
+- Imaging modality
+  - Chest x-rays taken in the AP and PA view 
+- Age range
+  - 1-95 years
+- Gender distribution
+  - Almost balanced male and female
+- Prevalence of pneumonia 
+  - 20% Prevalence of pneumonia 
 
 **Ground Truth Acquisition Methodology:**
 
-This NIH Chest X-ray Dataset is comprised of 112,120 X-ray images with disease labels from 30,805 unique patients. To create these labels, the authors used Natural Language Processing to text-mine disease classifications from the associated radiological reports. The labels are expected to be >90% accurate and suitable for weakly-supervised learning.
+The majority vote of the 4 radiologists as ground truth.
 
 **Algorithm Performance Standard:**
 
-With maximum F1_score = 0.426, CheXCNN performs a bit lower than CheXNet (Rajpurtar, et al., 2017). However, CheXCNN's F1 score is higher those of three radiologists (radioplogist 1 & radioplogist 2 & radiologist 3) in Rajpurtar, et al. (2017).
+F1_score can be the performance standard as seen in CheXNet (Rajpurtar, et al., 2017)
 
