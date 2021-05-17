@@ -154,6 +154,20 @@ The criteria to choose the threshold is to find the threshold that maximizes pre
 
 ### 4. Databases
 
+**Description of Dataset:** 
+
+The dataset contains 112,120 chest X-ray images (Image Index) with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients (Patient ID).
+
+![age_distribution](image/age_distribution.png)
+
+![gender](image/gender.png)
+
+![pneumonia_prevalence](image/pneumonia_prevalence.png)
+
+The distribution of top 30 diseases that are comorbid with pneumonia
+
+![comorbid](image/comorbid.png)
+
 **Description of Training Dataset:** 
 
 The training dataset is an imbalanced dataset containing 1,145 pneumonia cases and a total of 89,696 images sampled from 112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients.
