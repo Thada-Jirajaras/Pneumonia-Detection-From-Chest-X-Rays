@@ -35,19 +35,19 @@ If any of these three categories do not match their respective requirements, the
 
 The model architecture :
 
-1. Pre-existing architecture:  model_1 (Model) 
-2. Layers added to pre-existing architecture: flatten_1(Flatten) and dense_1(Dense)
+1. Pre-existing architecture:  model_2 (Model) 
+2. Layers added to pre-existing architecture: flatten_2(Flatten) and dense_2(Dense)
 
 ```
-Model: "sequential_1"
+Model: "sequential_2"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
 =================================================================
-model_1 (Model)              (None, 7, 7, 512)         14714688  
+model_2 (Model)              (None, 7, 7, 512)         14714688  
 _________________________________________________________________
-flatten_1 (Flatten)          (None, 25088)             0         
+flatten_2 (Flatten)          (None, 25088)             0         
 _________________________________________________________________
-dense_1 (Dense)              (None, 1)                 25089     
+dense_2 (Dense)              (None, 1)                 25089     
 =================================================================
 Total params: 14,739,777
 Trainable params: 2,384,897
@@ -55,14 +55,14 @@ Non-trainable params: 12,354,880
 _________________________________________________________________
 ```
 
-The Pre-existing architecture "model_1 (Model)" 
+The Pre-existing architecture "model_2 (Model)" 
 
 ```
-Model: "model_1"
+Model: "model_2"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
 =================================================================
-input_1 (InputLayer)         (None, 224, 224, 3)       0         
+input_2 (InputLayer)         (None, 224, 224, 3)       0         
 _________________________________________________________________
 block1_conv1 (Conv2D)        (None, 224, 224, 64)      1792      
 _________________________________________________________________
@@ -131,24 +131,26 @@ The architecture of Pre-existing architecture is VGG16
 * Layers of pre-existing architecture that were fine-tuned
   * block5_conv3 were fine-tuned
 * Layers added to pre-existing architecture
-  * flatten_1 (Flatten) 
-  * dense_1 (Dense)  
+  * flatten_2 (Flatten) 
+  * dense_2 (Dense)  
 
-![performance_visualization](image/performance_visualization.png)
+![history](D:\udacity_git_project\Pneumonia-Detection-From-Chest-X-Rays\image\history.png)
 
 Note that PrecisionAtRecall80 means max precision when recall >= 0.8.
 
 **Final Threshold and Explanation:** 
 
-Selected threshold = 0.44090602 with
+Selected threshold = 0.43900916 with
 
-1. Precision = 0.28 
+1. Precision = 0.29 
 
 2. Recall = 0.8
 
-3. F1-score = 0.41
+3. F1-score = 0.42
 
 The criteria to choose the threshold is to find the threshold that maximizes precision when recall >= 0.8
+
+![performance_visualization](D:\udacity_git_project\Pneumonia-Detection-From-Chest-X-Rays\image\performance_visualization.png)
 
 ### 4. Databases
 
@@ -159,11 +161,17 @@ The training dataset is an imbalanced dataset containing 1,145 pneumonia cases a
 However, the training dataset for each training epoch contains only 2,304  images and is almost balanced for Pneumonia and Non-Pneumonia labels by the sampling technique as follows.
 
 1. 1,145 images of Pneumonia from training dataset
-2. 1,159 images of Non-Pneumonia sampled from the training dataset every epoch 
+2. 1,159 images of Non-Pneumonia newly sampled from the training dataset every epoch 
+
+The reason to use 2,304 number is that it can be divided by the batch size 256 that is used in the training process. (e.g. 2,304/256 = 9)
+
+![training_dataset](D:\udacity_git_project\Pneumonia-Detection-From-Chest-X-Rays\image\training_dataset.png)
 
 **Description of Validation Dataset:** 
 
 The validation dataset is an imbalanced dataset containing 20% pneumonia cases and a total of 1430 images sampled from 112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients.
+
+![validation_dataset](D:/udacity_git_project/Pneumonia-Detection-From-Chest-X-Rays/image/validation_dataset.png)
 
 
 ### 5. Ground Truth
@@ -182,5 +190,5 @@ This NIH Chest X-ray Dataset is comprised of 112,120 X-ray images with disease l
 
 **Algorithm Performance Standard:**
 
-With maximum F1_score = 0.425, CheXCNN performs a bit lower than CheXNet (Rajpurtar, et al., 2017). However, CheXCNN's F1 score is higher those of three radiologists (radioplogist 1 & radioplogist 2 & radiologist 3) in Rajpurtar, et al. (2017).
+With maximum F1_score = 0.426, CheXCNN performs a bit lower than CheXNet (Rajpurtar, et al., 2017). However, CheXCNN's F1 score is higher those of three radiologists (radioplogist 1 & radioplogist 2 & radiologist 3) in Rajpurtar, et al. (2017).
 

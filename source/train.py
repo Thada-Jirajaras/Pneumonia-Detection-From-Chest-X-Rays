@@ -240,7 +240,7 @@ class PrecisionAtRecall(Callback):
         
 def build_callbacks_list(weight_path,
                          validation_data,
-                         patience = 10,
+                         patience = 40,
                         initial_learning_rate = 0.0001,
                         maximal_learning_rate = 0.1,
                         cyclical_lrstepsize = 10):
@@ -251,31 +251,46 @@ def build_callbacks_list(weight_path,
     ## The 'patience' parameter is set to 10, meaning that your model will train for ten epochs without seeing
     ## improvement before quitting
 
-    # Todo
-    mode = 'max'
-    checkpoint = ModelCheckpoint(weight_path, 
+    # Todo    
+    (weight_path_head, weight_path_tail) =  os.path.split(weight_path)
+    PrecisionAtRecall80_weightpath = os.path.join(weight_path_head,  'PrecisionAtRecall80_' + weight_path_tail)
+    valloss_weightpath = os.path.join(weight_path_head,  'valloss_' + weight_path_tail)
+    print('model check point paths are', [valloss_weightpath, PrecisionAtRecall80_weightpath])
+    checkpoint_valloss = ModelCheckpoint(valloss_weightpath, 
+                                  monitor = 'val_loss', 
+                                  verbose= 1 , 
+                                  mode = 'min',  
+                                  save_best_only = True, 
+                                  save_weights_only = True)
+    
+    checkpoint_PrecisionAtRecall80 = ModelCheckpoint(PrecisionAtRecall80_weightpath, 
                                   monitor = 'PrecisionAtRecall80', 
                                   verbose= 1 , 
+                                  mode = 'max',                 
                                   save_best_only = True, 
-                                  mode = mode, 
                                   save_weights_only = True)
+    
 
-    early = EarlyStopping(monitor= 'PrecisionAtRecall80', 
-                           mode = mode, 
+
+    early = EarlyStopping(monitor= 'val_loss', 
+                           mode = 'max', 
                            patience = patience)
+    
+
     
     cyclical_lr = CyclicalLearningRate(initial_learning_rate, 
                                        maximal_learning_rate,
                                       step_size = cyclical_lrstepsize)
 
-    return([PrecisionAtRecall(recall=0.8, val_gen = validation_data), checkpoint, early, cyclical_lr])
+    return([PrecisionAtRecall(recall=0.8, val_gen = validation_data), checkpoint_PrecisionAtRecall80, checkpoint_valloss,
+            early, cyclical_lr])
 
 def get_lr_metric(optimizer):
     def lr(y_true, y_pred):
         return optimizer.lr
     return lr
 
-def train(model, callbacks_list, train_gen, epochs, 
+def train(model, callbacks_list, train_gen, epochs, validation_data,
           save_architecture_to = "my_model.json",
          save_history_to =  "history.npy"):
     optimizer = Adam()
@@ -286,7 +301,7 @@ def train(model, callbacks_list, train_gen, epochs,
 
     # Todo
     history = model.fit_generator(generator = train_gen, 
-                               #validation_data = validation_data,
+                               validation_data = validation_data,
                                epochs = epochs, 
                                callbacks = callbacks_list)
     # save model architecture

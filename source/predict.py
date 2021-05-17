@@ -56,38 +56,54 @@ def plot_precision_recall_f1_curve(c_axs, t_y, p_y):
     c_axs[1].plot(thresholds, recall, label = 'recall')
     c_axs[1].plot(thresholds, f1, label = 'F1-score')
     c_axs[1].legend()
-    c_axs[1].set_title(f'With max F1-score={f1[maxf1index]:.3}, threshold={thresholds[maxf1index]:.3}\nRecall={recall[maxf1index]:.3}, Precision = {precision[maxf1index]:.2}\non Validation Set')
+    #c_axs[1].set_title()
     c_axs[1].set_xlabel('Threshold')
-    c_axs[1].set_ylabel('Score')
+    c_axs[1].set_ylabel('Score')  
+    summary_text = f'With max F1-score={f1[maxf1index]:.3}, threshold={thresholds[maxf1index]:.3}, Recall={recall[maxf1index]:.3}, Precision = {precision[maxf1index]:.2} on Validation Set'
+    return(summary_text)
 
 
 
 #Also consider plotting the history of your model training:
 
-def plot_history(c_axs, history):
+def plot_history(history_path):
+    
+    history = np.load(history_path,allow_pickle='TRUE').item() 
+    number_of_axs = len(history)
+    colnum = 3
+    rownum = (number_of_axs - 1)//colnum + 1
+    fig, axs = plt.subplots(rownum, colnum, figsize = (15, rownum*5))
+    axs = axs.flatten()
+    for ax in axs[number_of_axs:]:
+        ax.remove()
     
     N = len(history["loss"])
-    for i, key in enumerate(history.keys()):
-        c_axs[i].plot(np.arange(0, N), history[key], label=key)
+    keys = list(history.keys())
+    keys.remove('loss')
+    keys = ['loss'] + keys
+    for i, key in enumerate(keys):
+        axs[i].plot(np.arange(0, N), history[key], label=key)
         if key == "loss":
             mode = "Training"
         else:
             mode = 'Validation'
-        c_axs[i].set_title(f"{mode} {key} on Dataset")
-        c_axs[i].set_xlabel("Epoch #")
-        c_axs[i].set_ylabel("Loss/Accuracy")
-        c_axs[i].legend(loc="lower left")
+        axs[i].set_title(f"{mode} {key} on Dataset")
+        axs[i].set_xlabel("Epoch #")
+        axs[i].set_ylabel("Loss/Accuracy")
+        axs[i].legend(loc="lower left")
+        handles, labels = axs[i].get_legend_handles_labels()
+        axs[i].legend(handles, labels, loc =  1)
 
 
 
-def plot_performance(prediction_path, groundtruth_path, history_path, title = ''):
+def plot_performance(prediction_path, groundtruth_path, title = ''):
     # Get prediction
     probability = np.load(prediction_path)
     ground_truth = np.load(groundtruth_path)
-    history = np.load(history_path,allow_pickle='TRUE').item()
+    
     
     # plot results 
-    number_of_axs = 3 + len(history)
+    number_of_axs = 3 
     colnum = 3
     rownum = (number_of_axs - 1)//colnum + 1 
     fig, axs = plt.subplots(rownum, colnum, figsize = (15, rownum*5))
@@ -95,9 +111,8 @@ def plot_performance(prediction_path, groundtruth_path, history_path, title = ''
     for ax in axs[number_of_axs:]:
         ax.remove()
     plot_auc(axs[0], ground_truth, probability)
-    plot_precision_recall_f1_curve(axs[1:3], ground_truth, probability)
-    plot_history(axs[3:], history) 
-    fig.suptitle(title)
+    summary_text = plot_precision_recall_f1_curve(axs[1:], ground_truth, probability)
+    fig.suptitle(f'''{title} ({summary_text})''')
     plt.show()
     
         
