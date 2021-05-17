@@ -184,7 +184,7 @@ The reason to use 2,304 number is that it can be divided by the batch size 256 t
 
 **Description of Validation Dataset:** 
 
-The validation dataset is an imbalanced dataset containing 20% pneumonia cases and a total of 1430 images sampled from the Original Dataset (112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients).
+The validation dataset is an imbalanced dataset containing 20% pneumonia cases and a total of 1430 images sampled from the Original Dataset (112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients). Also, all samples in validation dataset are not included in the training dataset.
 
 ![validation_dataset](image/validation_dataset.png)
 
