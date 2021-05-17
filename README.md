@@ -134,7 +134,7 @@ The architecture of Pre-existing architecture is VGG16
   * flatten_2 (Flatten) 
   * dense_2 (Dense)  
 
-![history](D:\udacity_git_project\Pneumonia-Detection-From-Chest-X-Rays\image\history.png)
+![history](image/history.png)
 
 Note that PrecisionAtRecall80 means max precision when recall >= 0.8.
 
@@ -150,7 +150,7 @@ Selected threshold = 0.43900916 with
 
 The criteria to choose the threshold is to find the threshold that maximizes precision when recall >= 0.8
 
-![performance_visualization](D:\udacity_git_project\Pneumonia-Detection-From-Chest-X-Rays\image\performance_visualization.png)
+![performance_visualization](image/performance_visualization.png)
 
 ### 4. Databases
 
@@ -165,13 +165,13 @@ However, the training dataset for each training epoch contains only 2,304  image
 
 The reason to use 2,304 number is that it can be divided by the batch size 256 that is used in the training process. (e.g. 2,304/256 = 9)
 
-![training_dataset](D:\udacity_git_project\Pneumonia-Detection-From-Chest-X-Rays\image\training_dataset.png)
+![training_dataset](image/training_dataset.png)
 
 **Description of Validation Dataset:** 
 
 The validation dataset is an imbalanced dataset containing 20% pneumonia cases and a total of 1430 images sampled from 112,120 chest X-ray images with 14 (unique) disease and 'No Finding' labels from 30,805 unique patients.
 
-![validation_dataset](D:/udacity_git_project/Pneumonia-Detection-From-Chest-X-Rays/image/validation_dataset.png)
+![validation_dataset](image/validation_dataset.png)
 
 
 ### 5. Ground Truth
